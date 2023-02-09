@@ -58,8 +58,8 @@ exports.getUserWithId = getUserWithId;
  * @return {Promise<{}>} A promise to the user.
  */
 const addUser = function(user) {
-  const query = 'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *;';
-  return pool.query(query, [user.name, user.email, user.password])
+  const sql = 'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *;';
+  return pool.query(sql, [user.name, user.email, user.password])
     .then((result) => {
       console.log(result.rows);
       return result.rows[0];
@@ -76,9 +76,28 @@ exports.addUser = addUser;
  * Get all reservations for a single user.
  * @param {string} guest_id The id of the user.
  * @return {Promise<[{}]>} A promise to the reservations.
- */
+*/
 const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  const sql = `
+  SELECT reservations.*, properties.*, avg(rating) as average_rating
+  FROM reservations
+  JOIN properties ON reservations.property_id = properties.id
+  JOIN property_reviews ON properties.id = property_reviews.property_id
+  
+  WHERE reservations.guest_id = $1
+  GROUP BY properties.id, reservations.id
+  ORDER BY start_date
+  LIMIT $2;
+  `;
+  return pool.query(sql, [guest_id, limit])
+    .then((result) => {
+      console.log('all rows:', result.rows);
+      return result.rows;
+
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
 };
 exports.getAllReservations = getAllReservations;
 
